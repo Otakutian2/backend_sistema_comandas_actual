@@ -6,6 +6,7 @@
         public decimal AccumulatedSales { get; set; }
         public int NumberOfGeneratedReceipts { get; set; }
         public int QuantityOfDishSales { get; set; }
+        public int QuantityOfExtrasSold { get; set; }
         public string BestSellingDish { get; set; }
 
         public List<AccumulatedPaymentsByDay> accumulatedPaymentsByDays { get; set; } = new List<AccumulatedPaymentsByDay>();

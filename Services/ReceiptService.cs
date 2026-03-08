@@ -318,6 +318,7 @@ namespace proyecto_backend.Services
                     int quantityOfDishSales = dayDishes.Sum(d => d.DishQuantity);
 
                     var totalExtrasAmount = soldExtrasGroup.Sum(x => x.TotalAmount);
+                    var totalExtrasQuantity = soldExtrasGroup.Sum(x => x.Quantity);
 
                     return new SalesDataPerDate
                     {
@@ -326,6 +327,7 @@ namespace proyecto_backend.Services
                         NumberOfGeneratedReceipts = dailyGroup.Select(x => x.Id).Distinct().Count(),
                         QuantityOfDishSales = quantityOfDishSales,
                         BestSellingDish = bestSellingDish,
+                        QuantityOfExtrasSold = totalExtrasQuantity,
                         accumulatedPaymentsByDays = dayPaymentsAgg,
                         SoldDishes = soldDishesGroup.OrderByDescending(x => x.Quantity).ToList(),
                         SoldExtras = soldExtrasGroup.OrderByDescending(x => x.Quantity).ToList()
