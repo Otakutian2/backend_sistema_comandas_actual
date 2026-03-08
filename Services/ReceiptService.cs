@@ -178,6 +178,7 @@ namespace proyecto_backend.Services
                         .Select(pg => new AccumulatedPaymentsByDay
                         {
                             PaymentMethodId = pg.Key,
+                            PaymentMethodName = pg.First(x => x.PaymentMethodId == pg.Key)?.PaymentMethodName,
                             TotalAmount = pg.Sum(p => p.Amount)
                         })
                         .ToList();
