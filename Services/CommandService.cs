@@ -168,7 +168,7 @@ namespace proyecto_backend.Services
                 }
 
                 command.TotalOrderPrice = grandTotal;
-
+                command.CreatedAt = GlobalUtils.GetPeruTime();
                 // 6. Guardar
                 _context.Command.Add(command);
                 await _context.SaveChangesAsync();
