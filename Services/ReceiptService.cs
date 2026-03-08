@@ -132,7 +132,8 @@ namespace proyecto_backend.Services
                                     where receiptIds.Contains(r.Id)
                                     join c in _context.Command on r.CommandId equals c.Id
                                     join cd in _context.CommandDetails on c.Id equals cd.CommandId
-                                    join d in _context.Dish on cd.DishId equals d.Id
+                                    join d in _context.Dish on cd.DishId equals d.Id 
+                                    where d.Active == true
                                     select new
                                     {
                                         Date = r.CreatedAt.Date,
@@ -152,6 +153,7 @@ namespace proyecto_backend.Services
                                     join cd in _context.CommandDetails on c.Id equals cd.CommandId
                                     join e in _context.CommandDetailsExtras on cd.Id equals e.CommandDetailsId
                                     join d in _context.Dish on e.ExtraDishId equals d.Id
+                                    where d.Active == true
                                     select new 
                                     {
                                         Date = r.CreatedAt.Date,

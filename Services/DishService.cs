@@ -167,7 +167,7 @@ namespace proyecto_backend.Services
                         join c in _context.Command on dc.CommandId equals c.Id
                         join d in _context.Dish on dc.DishId equals d.Id
                         join ct in _context.Category on d.CategoryId equals ct.Id
-                        where c.CommandStateId == 3
+                        where c.CommandStateId == 3 && d.Active == true
                         group dc by new { dc.DishId, d.Name, d.Image, CategoryName = ct.Name, CreatedAtDate = c.CreatedAt.Date } into g
                         orderby g.Sum(dc => dc.OrderPrice) descending
                         select new DishOrderStatistics
