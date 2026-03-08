@@ -163,25 +163,71 @@ namespace proyecto_backend.Services
 
         public async Task<List<DishOrderStatistics>> GetDishOrderStatistics()
         {
-            var query = from dc in _context.CommandDetails
-                        join c in _context.Command on dc.CommandId equals c.Id
-                        join d in _context.Dish on dc.DishId equals d.Id
-                        join ct in _context.Category on d.CategoryId equals ct.Id
-                        where c.CommandStateId == 3 && d.Active == true
-                        group dc by new { dc.DishId, d.Name, d.Image, CategoryName = ct.Name, CreatedAtDate = c.CreatedAt.Date } into g
-                        orderby g.Sum(dc => dc.OrderPrice) descending
-                        select new DishOrderStatistics
-                        {
-                            DishId = g.Key.DishId,
-                            Name = g.Key.Name,
-                            ImgDish = g.Key.Image,
-                            Category = g.Key.CategoryName,
-                            TotalSales = g.Sum(dc => dc.OrderPrice),
-                            QuantityOfDishesSold = g.Sum(dc => dc.DishQuantity)
-                        };
+            var regularDishes = from dc in _context.CommandDetails
+                                join c in _context.Command on dc.CommandId equals c.Id
+                                join d in _context.Dish on dc.DishId equals d.Id
+                                //join ct in _context.Category on d.CategoryId equals ct.Id
+                                where c.CommandStateId == 3 && d.Active == true && d.CategoryId != "C-003"
+                                select new 
+                                { 
+                                    DishId = dc.DishId, 
+                                    //DishName = d.Name, 
+                                    //DishImage = d.Image, 
+                                    //CategoryName = ct.Name, 
+                                    Quantity = dc.DishQuantity,
+                                    TotalPrice =  (double)(d.Price * dc.DishQuantity)
+                                };
+
+            var extraDishes = from de in _context.CommandDetailsExtras
+                              join dc in _context.CommandDetails on de.CommandDetailsId equals dc.Id
+                              join c in _context.Command on dc.CommandId equals c.Id
+                              join d in _context.Dish on de.ExtraDishId equals d.Id
+                              //join ct in _context.Category on d.CategoryId equals ct.Id
+                              where c.CommandStateId == 3 && d.Active == true && d.CategoryId == "C-003"
+                              select new 
+                              { 
+                                  DishId = de.ExtraDishId, 
+                                  //DishName = d.Name, 
+                                  //DishImage = d.Image, 
+                                  //CategoryName = ct.Name, 
+                                  Quantity = de.Quantity,
+                                  TotalPrice = (double)(d.Price * de.Quantity)
+                              };
+
+            var combinedQuery = regularDishes.Concat(extraDishes);
+
+            var groupedQuery = from item in combinedQuery
+                               group item by new { item.DishId } into g
+                               orderby g.Sum(x => x.TotalPrice) descending
+                               select new DishOrderStatistics
+                               {
+                                   DishId = g.Key.DishId,
+                                   //Name = g.Key.DishName,
+                                   //ImgDish = g.Key.DishImage,
+                                   //Category = g.Key.CategoryName,
+                                   TotalSales = (decimal)g.Sum(x => x.TotalPrice),
+                                   QuantityOfDishesSold = g.Sum(x => x.Quantity)
+                               };
+
+            var result = await groupedQuery.ToListAsync();
+
+            var category = await _context.Category.ToListAsync();
+            var dish = await _context.Dish.ToListAsync();
+
+            foreach (var item in result)
+            {
+                var dishItem = dish.FirstOrDefault(x => x.Id == item.DishId);
+                if (dishItem != null)
+                {
+                    item.Name = dishItem.Name;
+                    item.ImgDish = dishItem.Image;
+                    item.Category = category.FirstOrDefault(x => x.Id == dishItem.CategoryId)?.Name;
+                }
+            }
+            
 
 
-            var result = await query.ToListAsync();
+
             return result;
         }
 

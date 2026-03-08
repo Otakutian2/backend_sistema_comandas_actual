@@ -177,11 +177,32 @@ namespace proyecto_backend.Services
 
                     var dayPaymentsAgg = dayPayments
                         .GroupBy(p => p.PaymentMethodId)
-                        .Select(pg => new AccumulatedPaymentsByDay
+                        .Select(pg => 
                         {
-                            PaymentMethodId = pg.Key,
-                            PaymentMethodName = pg.First(x => x.PaymentMethodId == pg.Key)?.PaymentMethodName,
-                            TotalAmount = pg.Sum(p => p.Amount)
+                            var paymentMethodId = pg.Key;
+
+                            var extraAmountForThisPaymentMethod = extrasInfo
+                                .Where(e => e.Date == dailyGroup.Key)
+                                .Sum(e => 
+                                {
+                                    var receiptPayments = dayPayments.Where(dp => dp.ReceiptId == e.ReceiptId).ToList();
+                                    var pmPayment = receiptPayments.FirstOrDefault(dp => dp.PaymentMethodId == paymentMethodId);
+                                    if (pmPayment != null)
+                                    {
+                                        var totalPaymentForReceipt = receiptPayments.Sum(dp => dp.Amount);
+                                        return totalPaymentForReceipt > 0 
+                                            ? e.ExtraOrderPrice * (pmPayment.Amount / totalPaymentForReceipt) 
+                                            : 0m;
+                                    }
+                                    return 0m;
+                                });
+
+                            return new AccumulatedPaymentsByDay
+                            {
+                                PaymentMethodId = paymentMethodId,
+                                PaymentMethodName = pg.First(x => x.PaymentMethodId == paymentMethodId)?.PaymentMethodName,
+                                TotalAmount = pg.Sum(p => p.Amount) + extraAmountForThisPaymentMethod
+                            };
                         })
                         .ToList();
 
@@ -296,10 +317,12 @@ namespace proyecto_backend.Services
 
                     int quantityOfDishSales = dayDishes.Sum(d => d.DishQuantity);
 
+                    var totalExtrasAmount = soldExtrasGroup.Sum(x => x.TotalAmount);
+
                     return new SalesDataPerDate
                     {
                         CreatedAt = dailyGroup.Key,
-                        AccumulatedSales = dailyGroup.Sum(x => x.TotalPrice),
+                        AccumulatedSales = dailyGroup.Sum(x => x.TotalPrice) + totalExtrasAmount,
                         NumberOfGeneratedReceipts = dailyGroup.Select(x => x.Id).Distinct().Count(),
                         QuantityOfDishSales = quantityOfDishSales,
                         BestSellingDish = bestSellingDish,
