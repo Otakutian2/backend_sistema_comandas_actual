@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using proyecto_backend.Data;
 using proyecto_backend.Dto;
 using proyecto_backend.Interfaces;
@@ -143,8 +143,9 @@ namespace proyecto_backend.Services
                                         DishCategoryId = d.CategoryId,
                                         cd.DishQuantity,
                                         cd.DishPrice,
-                                        cd.OrderPrice,
-                                        c.TotalOrderPrice
+                                        DishOrderPrice = cd.DishPrice * cd.DishQuantity,
+                                        c.TotalOrderPrice,
+                                        OriginalOrderPrice = c.CommandDetailsCollection.Sum(x => x.OrderPrice)
                                     }).ToListAsync();
 
             var extrasInfo = await (from r in _context.Receipt
@@ -164,7 +165,8 @@ namespace proyecto_backend.Services
                                         ExtraQuantity = e.Quantity,
                                         ExtraPrice = d.Price,
                                         ExtraOrderPrice = d.Price * e.Quantity,
-                                        c.TotalOrderPrice
+                                        c.TotalOrderPrice,
+                                        OriginalOrderPrice = c.CommandDetailsCollection.Sum(x => x.OrderPrice)
                                     }).ToListAsync();
 
             var dailySalesAnalytics = receiptsAndDishes
@@ -181,27 +183,11 @@ namespace proyecto_backend.Services
                         {
                             var paymentMethodId = pg.Key;
 
-                            var extraAmountForThisPaymentMethod = extrasInfo
-                                .Where(e => e.Date == dailyGroup.Key)
-                                .Sum(e => 
-                                {
-                                    var receiptPayments = dayPayments.Where(dp => dp.ReceiptId == e.ReceiptId).ToList();
-                                    var pmPayment = receiptPayments.FirstOrDefault(dp => dp.PaymentMethodId == paymentMethodId);
-                                    if (pmPayment != null)
-                                    {
-                                        var totalPaymentForReceipt = receiptPayments.Sum(dp => dp.Amount);
-                                        return totalPaymentForReceipt > 0 
-                                            ? e.ExtraOrderPrice * (pmPayment.Amount / totalPaymentForReceipt) 
-                                            : 0m;
-                                    }
-                                    return 0m;
-                                });
-
                             return new AccumulatedPaymentsByDay
                             {
                                 PaymentMethodId = paymentMethodId,
                                 PaymentMethodName = pg.First(x => x.PaymentMethodId == paymentMethodId)?.PaymentMethodName,
-                                TotalAmount = pg.Sum(p => p.Amount) + extraAmountForThisPaymentMethod
+                                TotalAmount = pg.Sum(p => p.Amount)
                             };
                         })
                         .ToList();
@@ -226,7 +212,7 @@ namespace proyecto_backend.Services
                             var dishPrice = firstDish.DishPrice;
                             var dishCategoryId = firstDish.DishCategoryId;
                             int totalQty = dg.Sum(x => x.DishQuantity);
-                            decimal totalAmt = dg.Sum(x => x.OrderPrice);
+                            decimal totalAmt = dg.Sum(x => x.DishOrderPrice);
 
                             var paymentBreakdown = new Dictionary<int, DishPaymentMethodTotal>();
                             foreach (var dishOrder in dg)
@@ -234,7 +220,7 @@ namespace proyecto_backend.Services
                                 var receiptPayments = dayPayments.Where(p => p.ReceiptId == dishOrder.ReceiptId).ToList();
                                 foreach (var rp in receiptPayments)
                                 {
-                                    decimal proportion = dishOrder.TotalOrderPrice > 0 ? (dishOrder.OrderPrice / dishOrder.TotalOrderPrice) : 0;
+                                    decimal proportion = dishOrder.OriginalOrderPrice > 0 ? (dishOrder.DishOrderPrice / dishOrder.OriginalOrderPrice) : 0;
                                     decimal amountForDish = rp.Amount * proportion;
 
                                     if (!paymentBreakdown.ContainsKey(rp.PaymentMethodId))
@@ -282,7 +268,7 @@ namespace proyecto_backend.Services
                                 var receiptPayments = dayPayments.Where(p => p.ReceiptId == extraOrder.ReceiptId).ToList();
                                 foreach (var rp in receiptPayments)
                                 {
-                                    decimal proportion = extraOrder.TotalOrderPrice > 0 ? (extraOrder.ExtraOrderPrice / extraOrder.TotalOrderPrice) : 0;
+                                    decimal proportion = extraOrder.OriginalOrderPrice > 0 ? (extraOrder.ExtraOrderPrice / extraOrder.OriginalOrderPrice) : 0;
                                     decimal amountForExtra = rp.Amount * proportion;
 
                                     if (!paymentBreakdown.ContainsKey(rp.PaymentMethodId))
@@ -320,10 +306,16 @@ namespace proyecto_backend.Services
                     var totalExtrasAmount = soldExtrasGroup.Sum(x => x.TotalAmount);
                     var totalExtrasQuantity = soldExtrasGroup.Sum(x => x.Quantity);
 
+                    var accumulatedDishes = soldDishesGroup.Sum(x => x.TotalAmount);
+                    var accumulatedExtras = totalExtrasAmount;
+                    var dailyDiscount = dayDishes.GroupBy(d => d.ReceiptId).Sum(g => g.First().OriginalOrderPrice - g.First().TotalOrderPrice);
+                    
+                    var totalAccumulated = accumulatedDishes + accumulatedExtras - dailyDiscount;
+
                     return new SalesDataPerDate
                     {
                         CreatedAt = dailyGroup.Key,
-                        AccumulatedSales = dailyGroup.Sum(x => x.TotalPrice) + totalExtrasAmount,
+                        AccumulatedSales = totalAccumulated,
                         NumberOfGeneratedReceipts = dailyGroup.Select(x => x.Id).Distinct().Count(),
                         QuantityOfDishSales = quantityOfDishSales,
                         BestSellingDish = bestSellingDish,

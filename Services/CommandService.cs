@@ -1,4 +1,4 @@
-﻿using Mapster;
+using Mapster;
 using Microsoft.EntityFrameworkCore;
 using proyecto_backend.Data;
 using proyecto_backend.Enums;
@@ -164,7 +164,7 @@ namespace proyecto_backend.Services
                 if (command.Discount > 0)
                 {
                     var discountAmount = GlobalUtils.CalculateDiscountedPrice(grandTotal, command.Discount, command.DiscountType);
-                    grandTotal -= discountAmount;
+                    grandTotal = discountAmount;
                 }
 
                 command.TotalOrderPrice = grandTotal;
