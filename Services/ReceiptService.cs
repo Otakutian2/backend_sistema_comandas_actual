@@ -106,17 +106,16 @@ namespace proyecto_backend.Services
         public async Task<List<SalesDataPerDate>> GetSalesDataPerDate()
         {
             var receiptsAndDishes = await (from r in _context.Receipt
+                                           join c in _context.Command on r.CommandId equals c.Id
                                            select new
                                            {
                                                Date = r.CreatedAt.Date,
                                                r.Id,
-                                               r.TotalPrice
+                                               r.TotalPrice,
+                                               Discount = c.Discount
                                            }).ToListAsync();
 
-            var receiptIds = receiptsAndDishes.Select(r => r.Id).Distinct().ToList();
-
             var paymentMethods = await (from r in _context.Receipt
-                                        where receiptIds.Contains(r.Id)
                                         join rd in _context.ReceiptDetails on r.Id equals rd.ReceiptId
                                         join pm in _context.PaymentMethod on rd.PaymentMethodId equals pm.Id
                                         select new
@@ -129,7 +128,6 @@ namespace proyecto_backend.Services
                                         }).ToListAsync();
 
             var dishesInfo = await (from r in _context.Receipt
-                                    where receiptIds.Contains(r.Id)
                                     join c in _context.Command on r.CommandId equals c.Id
                                     join cd in _context.CommandDetails on c.Id equals cd.CommandId
                                     join d in _context.Dish on cd.DishId equals d.Id 
@@ -149,7 +147,6 @@ namespace proyecto_backend.Services
                                     }).ToListAsync();
 
             var extrasInfo = await (from r in _context.Receipt
-                                    where receiptIds.Contains(r.Id)
                                     join c in _context.Command on r.CommandId equals c.Id
                                     join cd in _context.CommandDetails on c.Id equals cd.CommandId
                                     join e in _context.CommandDetailsExtras on cd.Id equals e.CommandDetailsId
@@ -308,7 +305,7 @@ namespace proyecto_backend.Services
 
                     var accumulatedDishes = soldDishesGroup.Sum(x => x.TotalAmount);
                     var accumulatedExtras = totalExtrasAmount;
-                    var dailyDiscount = dayDishes.GroupBy(d => d.ReceiptId).Sum(g => g.First().OriginalOrderPrice - g.First().TotalOrderPrice);
+                    var dailyDiscount = dailyGroup.Sum(r => r.Discount);
                     
                     var totalAccumulated = accumulatedDishes + accumulatedExtras - dailyDiscount;
 
@@ -316,6 +313,7 @@ namespace proyecto_backend.Services
                     {
                         CreatedAt = dailyGroup.Key,
                         AccumulatedSales = totalAccumulated,
+                        TotalDiscount = dailyDiscount,
                         NumberOfGeneratedReceipts = dailyGroup.Select(x => x.Id).Distinct().Count(),
                         QuantityOfDishSales = quantityOfDishSales,
                         BestSellingDish = bestSellingDish,

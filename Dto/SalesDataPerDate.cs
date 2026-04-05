@@ -1,9 +1,10 @@
-﻿namespace proyecto_backend.Dto
+namespace proyecto_backend.Dto
 {
     public class SalesDataPerDate
     {
         public DateTime CreatedAt { get; set; }
         public decimal AccumulatedSales { get; set; }
+        public decimal TotalDiscount { get; set; }
         public int NumberOfGeneratedReceipts { get; set; }
         public int QuantityOfDishSales { get; set; }
         public int QuantityOfExtrasSold { get; set; }
