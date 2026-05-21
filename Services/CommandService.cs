@@ -141,7 +141,7 @@ namespace proyecto_backend.Services
 
                     detail.DishPrice = dishPrice;
 
-                    decimal detailSubtotal = detail.DishPrice * detail.DishQuantity;
+                    decimal detailSubtotal = Math.Round(detail.DishPrice * detail.DishQuantity, 2);
 
                     if (detail.Extras != null && detail.Extras.Any())
                     {
@@ -149,25 +149,28 @@ namespace proyecto_backend.Services
                         {
                             if (priceDictionary.TryGetValue(extra.ExtraDishId, out decimal extraPrice))
                             {
-                                detailSubtotal += (extraPrice * extra.Quantity);
+                                detailSubtotal = Math.Round(detailSubtotal + (extraPrice * extra.Quantity), 2);
                                 extra.ExtraDish = null;
                             }
                         }
                     }
 
-                    detail.OrderPrice = detailSubtotal;
+                    detail.OrderPrice = Math.Round(detailSubtotal, 2);
 
                     grandTotal += detailSubtotal;
                 }
 
-                // 5. Aplicar Descuentos
                 if (command.Discount > 0)
                 {
-                    var discountAmount = GlobalUtils.CalculateDiscountedPrice(grandTotal, command.Discount, command.DiscountType);
-                    grandTotal = discountAmount;
+                    var discountAmount = GlobalUtils.CalculateDiscountedPrice(Math.Round(grandTotal, 2), command.Discount, command.DiscountType);
+                    grandTotal = Math.Round(discountAmount, 2);
+                }
+                else
+                {
+                    grandTotal = Math.Round(grandTotal, 2);
                 }
 
-                command.TotalOrderPrice = grandTotal;
+                command.TotalOrderPrice = Math.Round(grandTotal * 10) / 10;
                 command.CreatedAt = GlobalUtils.GetPeruTime();
                 // 6. Guardar
                 _context.Command.Add(command);
@@ -253,7 +256,7 @@ namespace proyecto_backend.Services
                         Observation = itemDto.Observation,
                     };
 
-                    decimal detailSubtotal = dishPrice * itemDto.DishQuantity;
+                    decimal detailSubtotal = Math.Round(dishPrice * itemDto.DishQuantity, 2);
 
                     if (itemDto.Extras != null)
                     {
@@ -268,12 +271,12 @@ namespace proyecto_backend.Services
                                 };
                                 newDetail.Extras.Add(newExtra);
 
-                                detailSubtotal += (extraPrice * extraDto.Quantity);
+                                detailSubtotal = Math.Round(detailSubtotal + (extraPrice * extraDto.Quantity), 2);
                             }
                         }
                     }
 
-                    newDetail.OrderPrice = detailSubtotal;
+                    newDetail.OrderPrice = Math.Round(detailSubtotal, 2);
 
                     grandTotal += detailSubtotal;
 
@@ -282,17 +285,17 @@ namespace proyecto_backend.Services
                 decimal newTotal = 0;
                 if (commandDto.Discount > 0)
                 {
-                    var discountVal = GlobalUtils.CalculateDiscountedPrice(grandTotal, commandDto.Discount, commandDto.DiscountType);
-                    newTotal = discountVal;
+                    var discountVal = GlobalUtils.CalculateDiscountedPrice(Math.Round(grandTotal, 2), commandDto.Discount, commandDto.DiscountType);
+                    newTotal = Math.Round(discountVal, 2);
                 }
                 else
                 {
-                    newTotal = grandTotal;
+                    newTotal = Math.Round(grandTotal, 2);
                 }
 
                     existingCommand.Discount = commandDto.Discount;
                 existingCommand.DiscountType = commandDto.DiscountType;
-                existingCommand.TotalOrderPrice = newTotal;
+                existingCommand.TotalOrderPrice = Math.Round(newTotal * 10) / 10;
                 existingCommand.CustomerAnonymous = commandDto.CustomerAnonymous;
 
                 if (existingCommand.TableRestaurantId == null)

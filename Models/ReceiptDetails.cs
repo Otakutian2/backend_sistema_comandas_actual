@@ -8,7 +8,7 @@ namespace proyecto_backend.Models
     {
         public int Id { get; set; }
 
-        [Precision(5, 2)]
+        [Precision(5, 1)]
         public decimal Amount { get; set; }
 
         [Column("receipt_id")]

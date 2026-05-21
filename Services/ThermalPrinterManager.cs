@@ -108,7 +108,8 @@ namespace proyecto_backend.Services
 
             builder.Append($@"
         <div class='header-title'>
-            <div class='brand'>ORDEN DE PEDIDO</div>
+            <div class='brand'>SADO</div>
+            <div class='brand-sub'>ORDEN DE PEDIDO</div>
             <div class='big-table'>{tituloMesa}</div>
         </div>
         
@@ -195,7 +196,7 @@ namespace proyecto_backend.Services
 
                 if (comanda.Discount > 0)
                 {
-                    montoDescuento = GlobalUtils.GetDiscountAmount(subTotalCalculado, comanda.Discount, comanda.DiscountType);
+                    montoDescuento = Math.Round(GlobalUtils.GetDiscountAmount(subTotalCalculado, comanda.Discount, comanda.DiscountType) * 10) / 10;
 
                     // Definimos si mostramos el %
                     string porcentajeTexto = "";
@@ -288,7 +289,8 @@ namespace proyecto_backend.Services
 
         /* --- ESTRUCTURA Y CABECERA --- */
         .header-title { text-align: center; margin-bottom: 10px; }
-        .brand { font-size: 12px; font-weight: bold; letter-spacing: 1px; }
+        .brand { font-size: 24px; font-weight: bold; letter-spacing: 2px; }
+        .brand-sub { font-size: 14px; font-weight: bold; letter-spacing: 1px; margin-top: 2px; }
         .big-table { 
             font-size: 20px; 
             font-weight: 900; 

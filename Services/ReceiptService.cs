@@ -112,22 +112,24 @@ namespace proyecto_backend.Services
                                                Date = r.CreatedAt.Date,
                                                r.Id,
                                                r.TotalPrice,
-                                               Discount = c.Discount
+                                               Discount = c.Discount,
+                                               DiscountType = c.DiscountType,
+                                               OriginalOrderPrice = c.CommandDetailsCollection.Sum(x => x.OrderPrice)
                                            }).ToListAsync();
 
-            var paymentMethods = await (from r in _context.Receipt
-                                        join rd in _context.ReceiptDetails on r.Id equals rd.ReceiptId
-                                        join pm in _context.PaymentMethod on rd.PaymentMethodId equals pm.Id
-                                        select new
-                                        {
-                                            Date = r.CreatedAt.Date,
-                                            ReceiptId = r.Id,
-                                            PaymentMethodId = pm.Id,
-                                            PaymentMethodName = pm.Name,
-                                            Amount = rd.Amount
-                                        }).ToListAsync();
+var paymentMethods = await (from r in _context.Receipt
+                                         join rd in _context.ReceiptDetails on r.Id equals rd.ReceiptId
+                                         join pm in _context.PaymentMethod on rd.PaymentMethodId equals pm.Id
+                                         select new
+                                         {
+                                             Date = r.CreatedAt.Date,
+                                             ReceiptId = r.Id,
+                                             PaymentMethodId = pm.Id,
+                                             PaymentMethodName = pm.Name,
+                                             Amount = Math.Round(rd.Amount * 10) / 10
+                                         }).ToListAsync();
 
-            var dishesInfo = await (from r in _context.Receipt
+var dishesInfo = await (from r in _context.Receipt
                                     join c in _context.Command on r.CommandId equals c.Id
                                     join cd in _context.CommandDetails on c.Id equals cd.CommandId
                                     join d in _context.Dish on cd.DishId equals d.Id 
@@ -141,7 +143,7 @@ namespace proyecto_backend.Services
                                         DishCategoryId = d.CategoryId,
                                         cd.DishQuantity,
                                         cd.DishPrice,
-                                        DishOrderPrice = cd.DishPrice * cd.DishQuantity,
+                                        DishOrderPrice = Math.Round(cd.DishPrice * cd.DishQuantity, 2),
                                         c.TotalOrderPrice,
                                         OriginalOrderPrice = c.CommandDetailsCollection.Sum(x => x.OrderPrice)
                                     }).ToListAsync();
@@ -161,7 +163,7 @@ namespace proyecto_backend.Services
                                         ExtraName = d.Name,
                                         ExtraQuantity = e.Quantity,
                                         ExtraPrice = d.Price,
-                                        ExtraOrderPrice = d.Price * e.Quantity,
+                                        ExtraOrderPrice = Math.Round(d.Price * e.Quantity, 2),
                                         c.TotalOrderPrice,
                                         OriginalOrderPrice = c.CommandDetailsCollection.Sum(x => x.OrderPrice)
                                     }).ToListAsync();
@@ -184,7 +186,7 @@ namespace proyecto_backend.Services
                             {
                                 PaymentMethodId = paymentMethodId,
                                 PaymentMethodName = pg.First(x => x.PaymentMethodId == paymentMethodId)?.PaymentMethodName,
-                                TotalAmount = pg.Sum(p => p.Amount)
+                                TotalAmount = Math.Round(pg.Sum(p => p.Amount) * 10) / 10
                             };
                         })
                         .ToList();
@@ -209,7 +211,7 @@ namespace proyecto_backend.Services
                             var dishPrice = firstDish.DishPrice;
                             var dishCategoryId = firstDish.DishCategoryId;
                             int totalQty = dg.Sum(x => x.DishQuantity);
-                            decimal totalAmt = dg.Sum(x => x.DishOrderPrice);
+                            decimal totalAmt = Math.Round(dg.Sum(x => x.DishOrderPrice) * 10) / 10;
 
                             var paymentBreakdown = new Dictionary<int, DishPaymentMethodTotal>();
                             foreach (var dishOrder in dg)
@@ -217,8 +219,8 @@ namespace proyecto_backend.Services
                                 var receiptPayments = dayPayments.Where(p => p.ReceiptId == dishOrder.ReceiptId).ToList();
                                 foreach (var rp in receiptPayments)
                                 {
-                                    decimal proportion = dishOrder.OriginalOrderPrice > 0 ? (dishOrder.DishOrderPrice / dishOrder.OriginalOrderPrice) : 0;
-                                    decimal amountForDish = rp.Amount * proportion;
+                                    decimal proportion = dishOrder.OriginalOrderPrice > 0 ? Math.Round(dishOrder.DishOrderPrice / dishOrder.OriginalOrderPrice, 4) : 0;
+                                    decimal amountForDish = Math.Round(rp.Amount * proportion * 10) / 10;
 
                                     if (!paymentBreakdown.ContainsKey(rp.PaymentMethodId))
                                     {
@@ -229,7 +231,7 @@ namespace proyecto_backend.Services
                                             Amount = 0
                                         };
                                     }
-                                    paymentBreakdown[rp.PaymentMethodId].Amount += amountForDish;
+                                    paymentBreakdown[rp.PaymentMethodId].Amount = Math.Round((paymentBreakdown[rp.PaymentMethodId].Amount + amountForDish) * 10) / 10;
                                 }
                             }
 
@@ -238,14 +240,14 @@ namespace proyecto_backend.Services
                                 DishId = dishId,
                                 DishName = dishName,
                                 Quantity = totalQty,
-                                UnitPrice = dishPrice,
+                                UnitPrice = Math.Round(dishPrice * 10) / 10,
                                 TotalAmount = totalAmt,
                                 DishCategoryId = dishCategoryId,
                                 PaymentMethodTotals = paymentBreakdown.Values.Select(v => new DishPaymentMethodTotal
                                 {
                                     PaymentMethodId = v.PaymentMethodId,
                                     PaymentMethodName = v.PaymentMethodName,
-                                    Amount = Math.Round(v.Amount, 2)
+                                    Amount = Math.Round(v.Amount * 10) / 10
                                 }).ToList()
                             };
                         }).ToList();
@@ -257,7 +259,7 @@ namespace proyecto_backend.Services
                         {
                             var firstExtra = eg.First();
                             int totalQty = eg.Sum(x => x.ExtraQuantity);
-                            decimal totalAmt = eg.Sum(x => x.ExtraOrderPrice);
+                            decimal totalAmt = Math.Round(eg.Sum(x => x.ExtraOrderPrice) * 10) / 10;
 
                             var paymentBreakdown = new Dictionary<int, DishPaymentMethodTotal>();
                             foreach (var extraOrder in eg)
@@ -265,8 +267,8 @@ namespace proyecto_backend.Services
                                 var receiptPayments = dayPayments.Where(p => p.ReceiptId == extraOrder.ReceiptId).ToList();
                                 foreach (var rp in receiptPayments)
                                 {
-                                    decimal proportion = extraOrder.OriginalOrderPrice > 0 ? (extraOrder.ExtraOrderPrice / extraOrder.OriginalOrderPrice) : 0;
-                                    decimal amountForExtra = rp.Amount * proportion;
+                                    decimal proportion = extraOrder.OriginalOrderPrice > 0 ? Math.Round(extraOrder.ExtraOrderPrice / extraOrder.OriginalOrderPrice, 4) : 0;
+                                    decimal amountForExtra = Math.Round(rp.Amount * proportion * 10) / 10;
 
                                     if (!paymentBreakdown.ContainsKey(rp.PaymentMethodId))
                                     {
@@ -277,7 +279,7 @@ namespace proyecto_backend.Services
                                             Amount = 0
                                         };
                                     }
-                                    paymentBreakdown[rp.PaymentMethodId].Amount += amountForExtra;
+                                    paymentBreakdown[rp.PaymentMethodId].Amount = Math.Round((paymentBreakdown[rp.PaymentMethodId].Amount + amountForExtra) * 10) / 10;
                                 }
                             }
 
@@ -287,27 +289,37 @@ namespace proyecto_backend.Services
                                 ExtraCategoryId = firstExtra.ExtraCategoryId,
                                 ExtraName = firstExtra.ExtraName,
                                 Quantity = totalQty,
-                                UnitPrice = firstExtra.ExtraPrice,
+                                UnitPrice = Math.Round(firstExtra.ExtraPrice * 10) / 10,
                                 TotalAmount = totalAmt,
                                 PaymentMethodTotals = paymentBreakdown.Values.Select(v => new DishPaymentMethodTotal
                                 {
                                     PaymentMethodId = v.PaymentMethodId,
                                     PaymentMethodName = v.PaymentMethodName,
-                                    Amount = Math.Round(v.Amount, 2)
+                                    Amount = Math.Round(v.Amount * 10) / 10
                                 }).ToList()
                             };
                         }).ToList();
 
                     int quantityOfDishSales = dayDishes.Sum(d => d.DishQuantity);
 
-                    var totalExtrasAmount = soldExtrasGroup.Sum(x => x.TotalAmount);
+                    var totalExtrasAmount = Math.Round(soldExtrasGroup.Sum(x => x.TotalAmount) * 10) / 10;
                     var totalExtrasQuantity = soldExtrasGroup.Sum(x => x.Quantity);
 
-                    var accumulatedDishes = soldDishesGroup.Sum(x => x.TotalAmount);
+                    var accumulatedDishes = Math.Round(soldDishesGroup.Sum(x => x.TotalAmount) * 10) / 10;
                     var accumulatedExtras = totalExtrasAmount;
-                    var dailyDiscount = dailyGroup.Sum(r => r.Discount);
+                    var dailyDiscount = Math.Round(dailyGroup.Sum(r =>
+                    {
+                        if (r.DiscountType == "percentage")
+                        {
+                            return Math.Round(r.OriginalOrderPrice * (r.Discount / 100), 2);
+                        }
+                        else
+                        {
+                            return r.Discount;
+                        }
+                    }) * 10) / 10;
                     
-                    var totalAccumulated = accumulatedDishes + accumulatedExtras - dailyDiscount;
+                    var totalAccumulated = Math.Round((accumulatedDishes + accumulatedExtras - dailyDiscount) * 10) / 10;
 
                     return new SalesDataPerDate
                     {

@@ -102,9 +102,8 @@ namespace proyecto_backend.Controllers
 
             receipt.CustomerId ??= 1;
 
-            //var subtotal = command.CommandDetailsCollection.Sum(c => c.OrderPrice);
             var discount = command.Discount;
-            var totalFinal = command.TotalOrderPrice; // Ya viene con descuento aplicado
+            var totalFinal = command.TotalOrderPrice;
             var totalPagado = receipt.ReceiptDetailsCollection.Sum(c => c.Amount);
 
     
@@ -127,11 +126,17 @@ namespace proyecto_backend.Controllers
 
             var newReceipt = receipt.Adapt<Receipt>();
 
+            foreach (var detail in newReceipt.ReceiptDetailsCollection)
+            {
+                detail.Amount = Math.Round(detail.Amount * 10) / 10;
+            }
+
             newReceipt.EmployeeId = (await _authService.GetCurrentUser()).Id;
             //newReceipt.Igv = igv;
             newReceipt.Igv = 0;
             newReceipt.AdditionalAmount = receipt.AdditionalAmount;
-            newReceipt.TotalPrice = totalPagado;
+            newReceipt.TotalPrice = Math.Round(totalPagado * 10) / 10;
+            newReceipt.Discount = Math.Round(discount * 10) / 10;
 
             await _receiptService.CreateReceipt(newReceipt);
             await _commandService.PayCommand(command);

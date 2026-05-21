@@ -15,11 +15,11 @@ namespace proyecto_backend.Utils
         {
             if (discountType == Constants.DiscountTypes.Percentage)
             {
-                return originalPrice - (originalPrice * (discountValue / 100));
+                return Math.Round(originalPrice - (originalPrice * (discountValue / 100)), 2);
             }
             else if (discountType == Constants.DiscountTypes.FixedAmount)
             {
-                return originalPrice - discountValue;
+                return Math.Round(originalPrice - discountValue, 2);
             }
             else
             {
